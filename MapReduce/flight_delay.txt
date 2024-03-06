@@ -1,0 +1,29 @@
+# hive -f hive_flight_delay.hql
+
+# aws s3 cp s3://flight-delay-data-bucket/delay-data/hive_flight_delay.hql .
+
+
+iterations=5
+
+hive_script="hive_flight_delay.hql"
+
+csv_file="hive_execution_times.csv"
+
+s3_data_location="s3://flight-delay-data-bucket/delay-data/"
+
+echo "Iteration,Query,RealTime,UserTime,SysTime" > $csv_file
+
+for ((i=1; i<=$iterations; i++)); do
+  echo "Running iteration $i"
+  
+  for query_num in {1..5}; do
+    query="QUERY_$query_num"
+    query_execution_time=$( { TIMEFORMAT='%R,%U,%S'; time hive -e "USE default; source $hive_script; $query"; } 2>&1 )
+    echo "$i,$query,$query_execution_time" | sed 's/real/RealTime/; s/user/UserTime/; s/sys/SysTime/' >> $csv_file
+  done
+done
+
+cat $csv_file
+
+aws s3 ls $s3_data_location
+
